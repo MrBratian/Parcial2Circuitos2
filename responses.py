@@ -133,11 +133,11 @@ def analyze_frequency_response(sys):
 def run_complete_analysis():
     """Ejecuta el análisis completo de respuestas temporales y en frecuencia."""
     configure_plots()
-    (R1, R2, R3, R4, R5, R6), (C1, C2), valores = init_components()
+    (R1, R2, R3, R4), (Ci, C1, C2), valores, configs = init_components()
     s = symbols('s')
-    
+
     # Obtener función de transferencia
-    H = calc_transfer_function(R1, R2, R5, R6, C1, C2, s)
+    H = calc_transfer_function(R1, R2, R3, R4, Ci, C1, C2, s, configs)
     sys = get_numeric_tf(H, valores, s)
     
     # Realizar análisis

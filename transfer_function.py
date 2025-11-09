@@ -7,15 +7,44 @@ from sympy import symbols, Poly
 import control
 from utils import init_components, configure_plots
 
-def calc_transfer_function(R1, R2, R5, R6, C1, C2, s):
-    """Calcula la función de transferencia del sistema."""
-    # Primera etapa
-    Z_C1 = 1/(s*C1)
-    H1 = -R2/R1 * (1/(1 + s*R2*C1))
+def calc_impedance(R, C, s, config):
+    """Calcula la impedancia según la configuración."""
+    if config['type'] == 'R':
+        return R
+    else:  # type == 'RC'
+        Z_C = 1/(s*C)
+        if config['config'] == 1:  # Serie
+            return R + Z_C
+        else:  # Paralelo
+            return (R * Z_C)/(R + Z_C)
+
+def calc_individual_transfer_functions(R1, R2, R3, R4, Ci, C1, C2, s, configs):
+    """Calcula las funciones de transferencia individuales y total."""
+    # Primera etapa (primer amplificador)
+    Z1 = calc_impedance(R2, C1, s, configs['config1'])
+    if Ci > 0:  # Si hay capacitor en la entrada
+        Z_in = (R1 * (1/(s*Ci)))/(R1 + 1/(s*Ci))  # R1 y Ci en paralelo
+        H1 = -Z1/Z_in
+    else:
+        H1 = -Z1/R1
     
-    # Segunda etapa
-    Z_C2 = 1/(s*C2)
-    H2 = -R6/R5 * (1/(1 + s*R6*C2))
+    # Segunda etapa (segundo amplificador)
+    Z2 = calc_impedance(R4, C2, s, configs['config2'])
+    H2 = -Z2/R3
+    
+    # Función de transferencia total
+    H_total = H1 * H2
+    
+    return H1, H2, H_total
+
+def calc_transfer_function(R1, R2, R3, R4, Ci, C1, C2, s, configs):
+    """Calcula la función de transferencia del sistema."""
+    _, _, H_total = calc_individual_transfer_functions(R1, R2, R3, R4, Ci, C1, C2, s, configs)
+    return H_total
+    
+    # Segunda etapa (segundo amplificador)
+    Z2 = calc_impedance(R4, C2, s, configs['config2'])
+    H2 = -Z2/R3
     
     return H1 * H2
 
@@ -29,7 +58,7 @@ def get_numeric_tf(H, valores, s):
 
 def analyze_stability(sys):
     """Analiza la estabilidad del sistema."""
-    poles = control.pole(sys)
+    poles = control.poles(sys)
     stable = all(pole.real < 0 for pole in poles)
     gm, pm, wg, wp = control.margin(sys)
     
@@ -45,16 +74,28 @@ def analyze_stability(sys):
 def plot_transfer_function_analysis():
     """Realiza y grafica el análisis completo de la función de transferencia."""
     configure_plots()
-    (R1, R2, R3, R4, R5, R6), (C1, C2), valores = init_components()
+    (R1, R2, R3, R4), (Ci, C1, C2), valores, configs = init_components()
     s = symbols('s')
+
+    # Calcular funciones de transferencia individuales y total
+    H1, H2, H_total = calc_individual_transfer_functions(R1, R2, R3, R4, Ci, C1, C2, s, configs)
     
-    # Calcular función de transferencia
-    H = calc_transfer_function(R1, R2, R5, R6, C1, C2, s)
-    sys = get_numeric_tf(H, valores, s)
+    print("\n=== Funciones de Transferencia ===")
+    print("\nPrimer Amplificador Operacional:")
+    print(f"H1(s) = {H1}")
+    
+    print("\nSegundo Amplificador Operacional:")
+    print(f"H2(s) = {H2}")
+    
+    print("\nFunción de Transferencia Total:")
+    print(f"H_total(s) = {H_total}")
+
+    # Convertir a sistema numérico para análisis
+    sys = get_numeric_tf(H_total, valores, s)
     
     # Análisis de polos y ceros
-    zeros = control.zero(sys)
-    poles = control.pole(sys)
+    zeros = control.zeros(sys)
+    poles = control.poles(sys)
     
     print("Ceros del sistema:")
     for i, zero in enumerate(zeros, 1):

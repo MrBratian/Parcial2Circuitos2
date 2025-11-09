@@ -1,19 +1,24 @@
-"""
-Script principal para el análisis de circuitos con amplificadores operacionales.
-"""
 from thevenin_analysis import plot_thevenin_analysis
 from transfer_function import plot_transfer_function_analysis
 from responses import run_complete_analysis
 
 def main():
-    """Ejecuta el análisis completo del circuito."""
-    print("=== Análisis de Equivalentes Thévenin ===")
+    # Análisis de Equivalentes Thévenin (ahora primero)
+    print("\n================================================")
+    print("=== ANÁLISIS DE EQUIVALENTES THÉVENIN ===")
+    print("================================================")
     plot_thevenin_analysis()
     
-    print("\n=== Análisis de Función de Transferencia y Estabilidad ===")
+    # Análisis de Funciones de Transferencia
+    print("\n================================================")
+    print("=== ANÁLISIS DE FUNCIONES DE TRANSFERENCIA ===")
+    print("================================================")
     plot_transfer_function_analysis()
     
-    print("\n=== Análisis de Respuestas Temporales y en Frecuencia ===")
+    # Análisis de Respuestas
+    print("\n================================================")
+    print("=== ANÁLISIS DE RESPUESTAS DEL SISTEMA ===")
+    print("================================================")
     run_complete_analysis()
 
 if __name__ == '__main__':
