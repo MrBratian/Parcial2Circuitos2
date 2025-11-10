@@ -18,35 +18,43 @@ def calc_impedance(R, C, s, config):
         else:  # Paralelo
             return (R * Z_C)/(R + Z_C)
 
-def calc_individual_transfer_functions(R1, R2, R3, R4, Ci, C1, C2, s, configs):
+def calc_individual_transfer_functions(R1, R2, R3, R4, Ci1, Ci2, C1, C2, s, configs):
     """Calcula las funciones de transferencia individuales y total."""
     # Primera etapa (primer amplificador)
     Z1 = calc_impedance(R2, C1, s, configs['config1'])
-    if Ci > 0:  # Si hay capacitor en la entrada
-        Z_in = (R1 * (1/(s*Ci)))/(R1 + 1/(s*Ci))  # R1 y Ci en paralelo
-        H1 = -Z1/Z_in
+    input1_cfg = configs.get('input1', {'type': 'R', 'config': None})
+    if input1_cfg['type'] == 'R' or Ci1 == 0:
+        Z_in1 = R1
     else:
-        H1 = -Z1/R1
+        Zc1 = 1/(s*Ci1)
+        if input1_cfg['config'] == 1:  # Serie
+            Z_in1 = R1 + Zc1
+        else:  # Paralelo
+            Z_in1 = (R1 * Zc1) / (R1 + Zc1)
+    H1 = -Z1 / Z_in1
     
     # Segunda etapa (segundo amplificador)
     Z2 = calc_impedance(R4, C2, s, configs['config2'])
-    H2 = -Z2/R3
+    input2_cfg = configs.get('input2', {'type': 'R', 'config': None})
+    if input2_cfg['type'] == 'R' or Ci2 == 0:
+        Z_in2 = R3
+    else:
+        Zc2 = 1/(s*Ci2)
+        if input2_cfg['config'] == 1:
+            Z_in2 = R3 + Zc2
+        else:
+            Z_in2 = (R3 * Zc2) / (R3 + Zc2)
+    H2 = -Z2 / Z_in2
     
     # Función de transferencia total
     H_total = H1 * H2
     
     return H1, H2, H_total
 
-def calc_transfer_function(R1, R2, R3, R4, Ci, C1, C2, s, configs):
+def calc_transfer_function(R1, R2, R3, R4, Ci1, Ci2, C1, C2, s, configs):
     """Calcula la función de transferencia del sistema."""
-    _, _, H_total = calc_individual_transfer_functions(R1, R2, R3, R4, Ci, C1, C2, s, configs)
+    _, _, H_total = calc_individual_transfer_functions(R1, R2, R3, R4, Ci1, Ci2, C1, C2, s, configs)
     return H_total
-    
-    # Segunda etapa (segundo amplificador)
-    Z2 = calc_impedance(R4, C2, s, configs['config2'])
-    H2 = -Z2/R3
-    
-    return H1 * H2
 
 def get_numeric_tf(H, valores, s):
     """Convierte la función de transferencia simbólica a numérica."""
@@ -71,14 +79,16 @@ def analyze_stability(sys):
     
     return stable, gm, pm, wg, wp
 
-def plot_transfer_function_analysis():
-    """Realiza y grafica el análisis completo de la función de transferencia."""
-    configure_plots()
-    (R1, R2, R3, R4), (Ci, C1, C2), valores, configs = init_components()
+def analyze_transfer_function_no_plots(components=None):
+    """Realiza el análisis de la función de transferencia sin mostrar gráficas."""
+    if components is None:
+        (R1, R2, R3, R4), (Ci1, Ci2, C1, C2), valores, configs = init_components()
+    else:
+        (R1, R2, R3, R4), (Ci1, Ci2, C1, C2), valores, configs = components
     s = symbols('s')
 
     # Calcular funciones de transferencia individuales y total
-    H1, H2, H_total = calc_individual_transfer_functions(R1, R2, R3, R4, Ci, C1, C2, s, configs)
+    H1, H2, H_total = calc_individual_transfer_functions(R1, R2, R3, R4, Ci1, Ci2, C1, C2, s, configs)
     
     print("\n=== Funciones de Transferencia ===")
     print("\nPrimer Amplificador Operacional:")
@@ -97,7 +107,7 @@ def plot_transfer_function_analysis():
     zeros = control.zeros(sys)
     poles = control.poles(sys)
     
-    print("Ceros del sistema:")
+    print("\nCeros del sistema:")
     for i, zero in enumerate(zeros, 1):
         print(f"z{i} = {zero:.2f}")
     
@@ -105,23 +115,31 @@ def plot_transfer_function_analysis():
     for i, pole in enumerate(poles, 1):
         print(f"p{i} = {pole:.2f}")
     
-    # Gráficas
-    plt.figure(figsize=(15, 5))
-    
-    plt.subplot(121)
-    control.pzmap(sys, plot=True)
-    plt.title('Diagrama de Polos y Ceros')
-    plt.grid(True)
-    
-    plt.subplot(122)
-    control.bode(sys, plot=True)
-    plt.title('Diagrama de Bode')
-    
-    plt.tight_layout()
-    plt.show()
-    
     # Análisis de estabilidad
     analyze_stability(sys)
+    
+    return sys  # Retornamos el sistema para usarlo en las gráficas
+
+def plot_transfer_function_analysis(components=None, show_plots=False):
+    """Realiza y grafica el análisis completo de la función de transferencia."""
+    configure_plots()
+    sys = analyze_transfer_function_no_plots(components)
+    
+    if show_plots:
+        # Gráficas
+        plt.figure(figsize=(15, 5))
+        
+        plt.subplot(121)
+        control.pzmap(sys, plot=True)
+        plt.title('Diagrama de Polos y Ceros')
+        plt.grid(True)
+        
+        plt.subplot(122)
+        control.bode(sys, plot=True)
+        plt.title('Diagrama de Bode')
+        
+        plt.tight_layout()
+        plt.show()
 
 if __name__ == '__main__':
     plot_transfer_function_analysis()

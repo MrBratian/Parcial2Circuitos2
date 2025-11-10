@@ -63,64 +63,126 @@ def get_impedance_type(stage_name):
                 print("Por favor, seleccione 1 o 2.")
         except ValueError:
             print("Por favor, ingrese un número válido.")
-
+    
+    
 def init_components():
-    """Inicializa los componentes del circuito interactivamente."""
-    print("\n=== Configuración del Primer Amplificador Operacional ===")
-    
-    # Primer amplificador
-    print("\nEntrada inversora:")
-    R1_val = get_user_input("R1 (Ω, por ejemplo 10000 para 10k): ")
-    has_C_input = get_yes_no("¿La entrada inversora tiene capacitor?")
-    C_input_val = get_user_input("Valor del capacitor de entrada (F): ", allow_zero=False) if has_C_input else 0
-    
-    print("\nRetroalimentación:")
-    config1 = get_impedance_type("Primer Amplificador")
-    R2_val = get_user_input("R2 (Ω): ")
-    C1_val = 0 if config1['type'] == 'R' else get_user_input("C1 (F, por ejemplo 1e-9): ", allow_zero=False)
-    
-    print("\n=== Configuración del Segundo Amplificador Operacional ===")
-    
-    # Segundo amplificador
-    print("\nEntrada inversora:")
-    R3_val = get_user_input("R3 (Ω): ")
-    
-    print("\nRetroalimentación:")
-    config2 = get_impedance_type("Segundo Amplificador")
-    R4_val = get_user_input("R4 (Ω): ")
-    C2_val = 0 if config2['type'] == 'R' else get_user_input("C2 (F, por ejemplo 1e-9): ", allow_zero=False)
-    
-    # Definir símbolos
+    """Inicializa los componentes del circuito interactivamente.
+
+    Solicita las configuraciones de las cuatro impedancias (entrada y retroalimentación
+    de cada op amp) en un flujo compacto:
+      - Para cada impedancia: preguntar si es 'Solo resistencia' o 'Resistencia y capacitor'
+      - Si es RC: preguntar si está en serie o paralelo con la resistencia
+      - Luego pedir los valores (R y opcionalmente C)
+
+    Devuelve símbolos, tupla de capacitores/símbolos, diccionario de valores y configs.
+    """
+    print("\n=== Configuración de los Amplificadores Operacionales ===")
+
+    # Preparar estructuras donde guardaremos los datos
+    op = {}
+
+    for i in (1, 2):
+        print(f"\n--- Amplificador Operacional {i} ---")
+        # Entrada inversora
+        print("\nEntrada inversora:")
+        inp_type = None
+        while inp_type not in (1, 2):
+            try:
+                print("1. Solo resistencia")
+                print("2. Resistencia y capacitor")
+                inp_type = int(input("Seleccione el tipo (1/2): "))
+            except ValueError:
+                print("Por favor ingrese 1 o 2.")
+        if inp_type == 1:
+            inp_cfg = {'type': 'R', 'config': None}
+            R_in = get_user_input("R (Ω): ")
+            C_in = 0
+        else:
+            # RC
+            rc_cfg = None
+            while rc_cfg not in (1, 2):
+                try:
+                    print("\nConfiguración R-C:")
+                    print("1. Serie")
+                    print("2. Paralelo")
+                    rc_cfg = int(input("Seleccione la configuración (1/2): "))
+                except ValueError:
+                    print("Por favor ingrese 1 o 2.")
+            inp_cfg = {'type': 'RC', 'config': rc_cfg}
+            R_in = get_user_input("R (Ω): ")
+            C_in = get_user_input("C (F, por ejemplo 1e-9): ", allow_zero=False)
+
+        # Retroalimentación
+        print("\nRetroalimentación:")
+        fb_type = None
+        while fb_type not in (1, 2):
+            try:
+                print("1. Solo resistencia")
+                print("2. Resistencia y capacitor")
+                fb_type = int(input("Seleccione el tipo (1/2): "))
+            except ValueError:
+                print("Por favor ingrese 1 o 2.")
+        if fb_type == 1:
+            fb_cfg = {'type': 'R', 'config': None}
+            R_fb = get_user_input("R (Ω): ")
+            C_fb = 0
+        else:
+            fb_rc = None
+            while fb_rc not in (1, 2):
+                try:
+                    print("\nConfiguración R-C:")
+                    print("1. Serie")
+                    print("2. Paralelo")
+                    fb_rc = int(input("Seleccione la configuración (1/2): "))
+                except ValueError:
+                    print("Por favor ingrese 1 o 2.")
+            fb_cfg = {'type': 'RC', 'config': fb_rc}
+            R_fb = get_user_input("R (Ω): ")
+            C_fb = get_user_input("C (F, por ejemplo 1e-9): ", allow_zero=False)
+
+        op[i] = {
+            'input': {'cfg': inp_cfg, 'R': R_in, 'C': C_in},
+            'fb': {'cfg': fb_cfg, 'R': R_fb, 'C': C_fb}
+        }
+
+    # Definir símbolos (mantener compatibilidad con el resto del código)
     R1, R2, R3, R4 = symbols('R1 R2 R3 R4')
-    C1, C2, Ci = symbols('C1 C2 Ci')  # Ci para el capacitor de entrada
-    
+    C1, C2, Ci1, Ci2 = symbols('C1 C2 Ci1 Ci2')
+
+    # Mapear valores a símbolos
     valores = {
-        R1: R1_val,
-        R2: R2_val,
-        R3: R3_val,
-        R4: R4_val,
-        C1: C1_val,
-        C2: C2_val,
-        Ci: C_input_val
+        R1: op[1]['input']['R'],
+        R2: op[1]['fb']['R'],
+        R3: op[2]['input']['R'],
+        R4: op[2]['fb']['R'],
+        C1: op[1]['fb']['C'],
+        C2: op[2]['fb']['C'],
+        Ci1: op[1]['input']['C'],
+        Ci2: op[2]['input']['C']
     }
-    
-    print("\nValores configurados:")
-    print(f"R1 = {R1_val/1e3:.2f} kΩ")
-    if C_input_val > 0:
-        print(f"Ci = {C_input_val*1e9:.2f} nF")
-    print(f"R2 = {R2_val/1e3:.2f} kΩ")
-    print(f"C1 = {C1_val*1e9:.2f} nF")
-    print(f"R3 = {R3_val/1e3:.2f} kΩ")
-    print(f"R4 = {R4_val/1e3:.2f} kΩ")
-    print(f"C2 = {C2_val*1e9:.2f} nF")
-    
+
     configs = {
-        'config1': config1,
-        'config2': config2
+        'config1': op[1]['fb']['cfg'],
+        'config2': op[2]['fb']['cfg'],
+        'input1': op[1]['input']['cfg'],
+        'input2': op[2]['input']['cfg']
     }
-    
+
+    print("\nValores configurados:")
+    print(f"R1 = {valores[R1]/1e3:.2f} kΩ")
+    print(f"R2 = {valores[R2]/1e3:.2f} kΩ")
+    print(f"C1 = {valores[C1]*1e9:.2f} nF")
+    print(f"R3 = {valores[R3]/1e3:.2f} kΩ")
+    print(f"R4 = {valores[R4]/1e3:.2f} kΩ")
+    print(f"C2 = {valores[C2]*1e9:.2f} nF")
+    if valores[Ci1] > 0:
+        print(f"Ci1 = {valores[Ci1]*1e9:.2f} nF")
+    if valores[Ci2] > 0:
+        print(f"Ci2 = {valores[Ci2]*1e9:.2f} nF")
+
     print("\nConfiguración completada.")
-    return (R1, R2, R3, R4), (Ci, C1, C2), valores, configs
+    return (R1, R2, R3, R4), (Ci1, Ci2, C1, C2), valores, configs
+
 
 def configure_plots():
     """Configura el estilo de las gráficas."""

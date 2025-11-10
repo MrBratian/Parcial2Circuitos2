@@ -130,20 +130,55 @@ def analyze_frequency_response(sys):
     print(f"Ganancia en altas frecuencias: {mag_db[-1]:.2f} dB")
     print(f"Pendiente en la banda de transición: {slope_high_freq:.2f} dB/década")
 
-def run_complete_analysis():
-    """Ejecuta el análisis completo de respuestas temporales y en frecuencia."""
-    configure_plots()
-    (R1, R2, R3, R4), (Ci, C1, C2), valores, configs = init_components()
+def analyze_responses_no_plots(components=None):
+    """Ejecuta el análisis numérico de respuestas temporales y en frecuencia."""
+    if components is None:
+        (R1, R2, R3, R4), (Ci1, Ci2, C1, C2), valores, configs = init_components()
+    else:
+        (R1, R2, R3, R4), (Ci1, Ci2, C1, C2), valores, configs = components
     s = symbols('s')
 
     # Obtener función de transferencia
-    H = calc_transfer_function(R1, R2, R3, R4, Ci, C1, C2, s, configs)
+    H = calc_transfer_function(R1, R2, R3, R4, Ci1, Ci2, C1, C2, s, configs)
     sys = get_numeric_tf(H, valores, s)
     
-    # Realizar análisis
-    plot_time_responses(sys)
+    # Calcular características sin mostrar gráficas
+    t = np.linspace(0, 0.01, 1000)
+    info = control.step_info(sys)
+    print("\nCaracterísticas de la respuesta al escalón:")
+    for key, value in info.items():
+        print(f"{key}: {value:.3f}")
+
+    # Análisis forzado
     analyze_forced_responses(sys)
-    analyze_frequency_response(sys)
+
+    # Análisis en frecuencia básico (sin gráficas)
+    w = np.logspace(-1, 5, 1000)
+    w, mag, phase = control.bode(sys, w, plot=False)
+    freq = w/(2*np.pi)
+    mag_db = 20 * np.log10(mag)
+    
+    # Encontrar frecuencia de corte
+    cutoff_idx = np.abs(mag_db - (max(mag_db) - 3)).argmin()
+    cutoff_freq = freq[cutoff_idx]
+    
+    # Determinar tipo de filtro
+    filter_type = determine_filter_type(mag_db, freq)
+    
+    print(f"\nTipo de filtro identificado: {filter_type}")
+    print(f"Frecuencia de corte (-3dB): {cutoff_freq:.2f} Hz")
+    
+    return sys
+
+def run_complete_analysis(components=None, show_plots=False):
+    """Ejecuta el análisis completo de respuestas temporales y en frecuencia."""
+    configure_plots()
+    sys = analyze_responses_no_plots(components)
+    
+    if show_plots:
+        # Realizar análisis con gráficas
+        plot_time_responses(sys)
+        analyze_frequency_response(sys)
 
 if __name__ == '__main__':
     run_complete_analysis()
