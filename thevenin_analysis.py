@@ -59,9 +59,7 @@ def calc_thevenin_salida(R3, R4, C2, s, config):
     return V_th, Z_th
 
 def plot_thevenin_analysis(components=None, show_plots=False):
-    """Realiza el análisis de Thévenin básico mostrando impedancias de entrada y salida,
-    y voltajes equivalentes para cada amplificador operacional.
-    """
+    """Realiza el análisis de Thévenin básico para cada op-amp y el sistema total."""
     if components is None:
         (R1, R2, R3, R4), (Ci1, Ci2, C1, C2), valores, configs = init_components()
     else:
@@ -75,70 +73,18 @@ def plot_thevenin_analysis(components=None, show_plots=False):
     print("Equivalente th entrada: Z3")
     print(f"Equivalente th salida: (Z4/Z3)*Vi2")
     
+    print("\n=== SISTEMA TOTAL ===")
+    print("Cascada de dos etapas:")
+    print("- Salida op-amp 1 = (Z2/Z1)*Vi1")
+    print("- Entrada op-amp 2 = Salida op-amp 1")
+    print("- Salida op-amp 2 = (Z4/Z3)*Salida op-amp 1 = (Z4/Z3)*(Z2/Z1)*Vi1")
+    
     print("\nDonde:")
     print("Z1: Impedancia de entrada del primer op amp")
     print("Z2: Impedancia de retroalimentación del primer op amp")
     print("Z3: Impedancia de entrada del segundo op amp")
     print("Z4: Impedancia de retroalimentación del segundo op amp")
     print("Vi1: Voltaje de entrada del primer op amp")
-    print("Vi2: Voltaje de entrada del segundo op amp")
-    
-    if show_plots:
-        configure_plots()
-        # Análisis en frecuencia
-        freq = np.logspace(0, 5, 1000)
-        
-        # Entrada
-        Z_th_mag = []
-        Z_th_phase = []
-        for f in freq:
-            V_th, Z_th = calc_thevenin_entrada(
-                valores[R1], valores[R2], valores[C1], valores[Ci1], 2*np.pi*f*1j, configs['config1'], configs.get('input1')
-            )
-            Z_th_mag.append(abs(Z_th))
-            Z_th_phase.append(np.angle(Z_th, deg=True))
-        
-        # Salida
-        Z_th_salida_mag = []
-        Z_th_salida_phase = []
-        for f in freq:
-            V_th, Z_th = calc_thevenin_salida(
-                valores[R3], valores[R4], valores[C2], 2*np.pi*f*1j, configs['config2']
-            )
-            Z_th_salida_mag.append(abs(Z_th))
-            Z_th_salida_phase.append(np.angle(Z_th, deg=True))
-        
-        # Gráficas
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
-        
-        # Entrada
-        ax1.semilogx(freq, Z_th_mag)
-        ax1.set_title('Magnitud Z_th Entrada')
-        ax1.set_xlabel('Frecuencia (Hz)')
-        ax1.set_ylabel('|Z_th| (Ω)')
-        ax1.grid(True)
-        
-        ax2.semilogx(freq, Z_th_phase)
-        ax2.set_title('Fase Z_th Entrada')
-        ax2.set_xlabel('Frecuencia (Hz)')
-        ax2.set_ylabel('Fase (grados)')
-        ax2.grid(True)
-        
-        # Salida
-        ax3.semilogx(freq, Z_th_salida_mag)
-        ax3.set_title('Magnitud Z_th Salida')
-        ax3.set_xlabel('Frecuencia (Hz)')
-        ax3.set_ylabel('|Z_th| (Ω)')
-        ax3.grid(True)
-        
-        ax4.semilogx(freq, Z_th_salida_phase)
-        ax4.set_title('Fase Z_th Salida')
-        ax4.set_xlabel('Frecuencia (Hz)')
-        ax4.set_ylabel('Fase (grados)')
-        ax4.grid(True)
-        
-        plt.tight_layout()
-        plt.show()
 
 if __name__ == '__main__':
     plot_thevenin_analysis()
